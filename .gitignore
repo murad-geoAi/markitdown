@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+
+# converted output markdown files (keep README.md)
+output/*.md
+outputs/*.md
+temp/*.md
+tmp/*.md
+!README.md
