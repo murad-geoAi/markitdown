@@ -1,2 +1,2 @@
 markitdown[all]
-gradio
+streamlit
