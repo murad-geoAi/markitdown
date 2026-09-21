@@ -79,16 +79,30 @@ def _extract_markdown(result) -> str:
         return result.markdown
     raise AttributeError("MarkItDown result has neither 'text_content' nor 'markdown'")
 
+def reset_state():
+    st.session_state.conversion_done = False
+    st.session_state.combined_markdown = ""
+    st.session_state.download_paths = []
+
 # UI Layout
 st.markdown('<div class="hero-title">MarkItDown ⚡</div>', unsafe_allow_html=True)
 st.markdown('<div class="hero-subtitle">Transform your files into clean, beautiful Markdown instantly.</div>', unsafe_allow_html=True)
 
 st.write("") # Spacer
 
+# State initialization
+if "conversion_done" not in st.session_state:
+    st.session_state.conversion_done = False
+if "combined_markdown" not in st.session_state:
+    st.session_state.combined_markdown = ""
+if "download_paths" not in st.session_state:
+    st.session_state.download_paths = []
+
 with st.container():
     uploaded_files = st.file_uploader(
         "Upload files or drag and drop", 
         accept_multiple_files=True,
+        on_change=reset_state,
         help="Supported formats: Word, Excel, PowerPoint, PDF, Images, Audio, HTML, CSV, JSON, XML"
     )
 
@@ -98,7 +112,7 @@ if uploaded_files:
     # Use columns to center the button
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        convert_pressed = st.button("✨ Convert to Markdown", use_container_width=True)
+        convert_pressed = st.button("✨ Convert to Markdown", type="primary", use_container_width=True)
 
     if convert_pressed:
         combined_parts = []
@@ -140,31 +154,38 @@ if uploaded_files:
         status_text.empty()
         progress_bar.empty()
         
-        combined_markdown = "\n---\n\n".join(combined_parts)
+        st.session_state.combined_markdown = "\n---\n\n".join(combined_parts)
+        st.session_state.download_paths = download_paths
+        st.session_state.conversion_done = True
+        
         st.toast("Conversion complete! 🎉", icon="✅")
-        
-        # Results area
-        st.markdown("### 📄 Results")
-        
-        # Display the result in a styled container
-        st.text_area("Preview", value=combined_markdown, height=400, label_visibility="collapsed")
-        
-        if download_paths:
-            st.markdown("### 📥 Download")
-            # Display downloads in columns
-            num_cols = min(3, len(download_paths))
-            if num_cols > 0:
-                dl_cols = st.columns(num_cols)
-                
-                for i, file_path in enumerate(download_paths):
-                    file_name = os.path.basename(file_path)
-                    with open(file_path, "rb") as file:
-                        with dl_cols[i % num_cols]:
-                            st.download_button(
-                                label=f"⬇️ {file_name}",
-                                data=file,
-                                file_name=file_name,
-                                mime="text/markdown",
-                                key=file_path,
-                                use_container_width=True
-                            )
+
+# Display results OUTSIDE the button block using session_state
+if st.session_state.conversion_done and uploaded_files:
+    # Results area
+    st.markdown("### 📄 Results")
+    
+    # Display the result in a styled container
+    st.text_area("Preview", value=st.session_state.combined_markdown, height=400, label_visibility="collapsed")
+    
+    if st.session_state.download_paths:
+        st.markdown("### 📥 Download")
+        # Display downloads in columns
+        num_cols = min(3, len(st.session_state.download_paths))
+        if num_cols > 0:
+            dl_cols = st.columns(num_cols)
+            
+            for i, file_path in enumerate(st.session_state.download_paths):
+                file_name = os.path.basename(file_path)
+                with open(file_path, "rb") as file:
+                    file_bytes = file.read()
+                    
+                with dl_cols[i % num_cols]:
+                    st.download_button(
+                        label=f"⬇️ {file_name}",
+                        data=file_bytes,
+                        file_name=file_name,
+                        mime="text/markdown",
+                        key=file_path,
+                        use_container_width=True
+                    )
